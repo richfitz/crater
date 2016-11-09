@@ -1,6 +1,8 @@
 context("blob")
 
 test_that("basic support", {
+  skip_if_no_crate()
+
   cl <- client()
 
   tbl <- basename(tempfile("blob_"))

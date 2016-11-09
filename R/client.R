@@ -143,3 +143,9 @@ create_sql_payload <- function(statement, args, bulk_args) {
   ## with datetimes that need some serious work
   jsonlite::toJSON(data)
 }
+
+has_crate <- function(url = NULL) {
+  cl <- client(url)
+  !is.null(tryCatch(cl$server_info(),
+                    error = function(e) NULL))
+}
