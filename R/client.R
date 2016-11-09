@@ -29,10 +29,12 @@ client <- function(url = NULL) {
   server_info <- function() {
     response <- request("GET", "/")
     crate_stop_for_status(response)
-    content <- json_from_response(response)
-    list(server = server$url,
-         node_name = content$name,
-         node_version = numeric_version(content$version$number))
+    ret <- json_from_response(response)
+    ret$server <- server$url
+    ret$version$number <- numeric_version(ret$version$number)
+    ret$version$es_version <- numeric_version(ret$version$es_version)
+    ret$version$lucene_version <- numeric_version(ret$version$lucene_version)
+    ret
   }
 
   ## These bits here are the core API:
