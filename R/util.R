@@ -9,3 +9,8 @@ http_method <- function(type) {
 `%||%` <- function(a, b) {
   if (is.null(a)) b else a
 }
+
+hash_sha1 <- function(x) {
+  assert_raw(x)
+  paste(unclass(openssl::sha1(x)), collapse = "")
+}

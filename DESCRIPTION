@@ -6,8 +6,10 @@ Version: 0.1.0
 Description: Client interface to the "crate" database server.
 Depends: R (>= 3.3.1)
 License: MIT + file LICENSE
-LazyData: true
 Imports:
   curl,
   httr,
-  jsonlite
+  jsonlite,
+  openssl
+Suggests:
+  testthat

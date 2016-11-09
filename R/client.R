@@ -1,5 +1,7 @@
 PATH_SQL <- "/_sql"
-PATH_BLOB <- "/_blob"
+path_blob <- function(table, digest) {
+  sprintf("/_blobs/%s/%s", table, digest)
+}
 
 ## I'm unsure if this will move into being R6 or not.  It probably
 ## will...
@@ -42,8 +44,86 @@ client <- function(url = NULL) {
     json_request("POST", PATH_SQL, data = data)
   }
 
+  ## Blob support: Get, Set, Del, Exists, List
+  ##
+  ## The main (only?) things that get found by scope here are
+  ## 'request()'
+  blob_get <- function(table, digest) {
+    response <- request("GET", path_blob(table, digest))
+    ## TODO: could roll this into the stop for status with various
+    ## handlers, lazily evaluated.
+    if (httr::status_code(response) == 404) {
+      stop(DigestNotFoundError(table, digest))
+    }
+    ## TODO: could use curl_fetch_stream here, which is in the new curl
+    crate_stop_for_status(response)
+    httr::content(response, "raw")
+  }
+  blob_set <- function(table, digest, data) {
+    assert_raw(data)
+    response <- request("PUT", path_blob(table, digest), data = data)
+    code <- httr::status_code(response)
+    if (code == 201) {
+      return(TRUE)
+    } else if (code == 409) {
+      return(FALSE)
+    } else {
+      crate_stop_for_status(response)
+    }
+  }
+  blob_del <- function(table, digest) {
+    response <- request("DELETE", path_blob(table, digest))
+    code <- httr::status_code(response)
+    if (code == 204) {
+      return(TRUE)
+    } else if (code == 404) {
+      return(FALSE)
+    } else {
+      crate_stop_for_status(response)
+    }
+  }
+  blob_exists <- function(table, digest) {
+    response <- request("HEAD", path_blob(table, digest))
+    code <- httr::status_code(response)
+    if (code == 200) {
+      return(TRUE)
+    } else if (code == 404) {
+      return(FALSE)
+    } else {
+      crate_stop_for_status(response)
+    }
+  }
+  blob_list <- function(table) {
+    ## Possible outcomes to guard against here:
+    ##
+    ## 1. table does not exist: throw appropriate error
+    ## 2. table is empty; return character(0)
+    dat <- sql(sprintf("SELECT DIGEST FROM blob.%s", table))
+    if (dat$rowcount == 0L) {
+      character(0)
+    } else {
+      drop(dat$rows)
+    }
+  }
+  blob_tables <- function() {
+    dat <- sql("SHOW TABLES IN blob")
+    if (dat$rowcount == 0L) {
+      character(0)
+    } else {
+      drop(dat$rows)
+    }
+  }
+
+  blob <- list(get = blob_get,
+               set = blob_set,
+               del = blob_del,
+               exists = blob_exists,
+               list = blob_list,
+               tables = blob_tables)
+
   list(close = close,
        sql = sql,
+       blob = blob,
        request = request,
        server_info = server_info)
 }

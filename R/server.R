@@ -11,7 +11,8 @@ server_handle <- function(server) {
   ##
   ## and then use curl directly rather than httr, which will likely be
   ## faster and more likely not to randomly break.
-  methods <- list(GET = httr::GET, POST = httr::POST)
+  methods <- list(GET = httr::GET, POST = httr::POST, HEAD = httr::HEAD,
+                  PUT = httr::PUT, DELETE = httr::DELETE)
   accept_json <- httr::add_headers(Accept = "application/json")
   request <- function(method, path, data = NULL, headers = NULL) {
     ## TODO: send along content-type: application/json here most of
