@@ -1,3 +1,5 @@
+## https://crate.io/docs/reference/en/0.55.0/sql/rest.html
+
 PATH_SQL <- "/_sql"
 path_blob <- function(table, digest) {
   sprintf("/_blobs/%s/%s", table, digest)
@@ -19,13 +21,6 @@ client <- function(url = NULL) {
     server$request(method, path, ...)
   }
 
-  json_request <- function(method, path, data) {
-    response <- request(method, path, data = data)
-    crate_stop_for_status(response)
-    str <- httr::content(response, "text")
-    jsonlite::fromJSON(str)
-  }
-
   server_info <- function() {
     response <- request("GET", "/")
     crate_stop_for_status(response)
@@ -37,13 +32,38 @@ client <- function(url = NULL) {
     ret
   }
 
-  ## These bits here are the core API:
-  sql <- function(statement, parameters = NULL, bulk_parameters = NULL) {
+  ## sql is one of the main endpoints
+  sql <- function(statement, parameters = NULL, bulk_parameters = NULL,
+                  col_types = FALSE, default_schema = NULL, as = "tibble") {
+    as <- match.arg(as, c("string", "parsed", "tibble"))
     if (is.null(statement)) {
       return(NULL)
     }
+    if (col_types || as == "tibble") {
+      query <- list(types = "")
+    } else {
+      query <- NULL
+    }
+    if (!is.null(default_schema)) {
+      headers <- c("Default-Schema" = default_schema)
+    } else {
+      headers <- NULL
+    }
+
     data <- create_sql_payload(statement, parameters, bulk_parameters)
-    json_request("POST", PATH_SQL, data = data)
+
+    response <- request("POST", PATH_SQL, data = data,
+                        query = query, headers = headers)
+    crate_stop_for_status(response)
+    str <- httr::content(response, "text")
+
+    if (as == "tibble") {
+      crate_json_to_df(str)
+    } else if (as == "parsed") {
+      jsonlite::fromJSON(str)
+    } else { ## string
+      str
+    }
   }
 
   ## Blob support: Get, Set, Del, Exists, List
@@ -70,6 +90,8 @@ client <- function(url = NULL) {
     } else if (code == 409) {
       return(FALSE)
     } else {
+      ## TODO: special treatment for the 400 error here which the
+      ## python lib throws as BlobsDisabledException
       crate_stop_for_status(response)
     }
   }
@@ -100,7 +122,7 @@ client <- function(url = NULL) {
     ##
     ## 1. table does not exist: throw appropriate error
     ## 2. table is empty; return character(0)
-    dat <- sql(sprintf("SELECT DIGEST FROM blob.%s", table))
+    dat <- sql(sprintf("SELECT DIGEST FROM blob.%s", table), as = "parsed")
     if (dat$rowcount == 0L) {
       character(0)
     } else {
@@ -108,7 +130,7 @@ client <- function(url = NULL) {
     }
   }
   blob_tables <- function() {
-    dat <- sql("SHOW TABLES IN blob")
+    dat <- sql("SHOW TABLES IN blob", as = "parsed")
     if (dat$rowcount == 0L) {
       character(0)
     } else {

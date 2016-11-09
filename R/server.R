@@ -14,18 +14,20 @@ server_handle <- function(server) {
   methods <- list(GET = httr::GET, POST = httr::POST, HEAD = httr::HEAD,
                   PUT = httr::PUT, DELETE = httr::DELETE)
   accept_json <- httr::add_headers(Accept = "application/json")
-  request <- function(method, path, data = NULL, headers = NULL) {
+  request <- function(method, path, data = NULL, headers = NULL, ...) {
     ## TODO: send along content-type: application/json here most of
     ## the time too?
-    if (!is.null(headers)) {
+    if (length(headers) > 0L) {
       headers <- httr::add_headers(.headers = headers)
+    } else {
+      headers <- NULL
     }
     url <- paste0(server, path)
     m <- methods[[method]]
     if (is.null(m)) {
       stop("Invalid method ", method)
     }
-    m(url, body = data, accept_json, headers)
+    m(url, body = data, accept_json, headers, ...)
   }
   close <- function() NULL
 

@@ -10,6 +10,7 @@ Imports:
   curl,
   httr,
   jsonlite,
-  openssl
+  openssl,
+  tibble
 Suggests:
   testthat

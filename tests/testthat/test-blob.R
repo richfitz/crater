@@ -6,7 +6,7 @@ test_that("basic support", {
   cl <- client()
 
   tbl <- basename(tempfile("blob_"))
-  res <- cl$sql(sprintf("CREATE BLOB TABLE %s", tbl))
+  res <- cl$sql(sprintf("CREATE BLOB TABLE %s", tbl), as = "parsed")
 
   expect_true(tbl %in% cl$blob$tables())
   expect_equal(cl$blob$list(tbl), character(0))
@@ -28,6 +28,6 @@ test_that("basic support", {
   expect_false(cl$blob$exists(tbl, sha))
   expect_error(cl$blob$get(tbl, sha), "not found in table")
 
-  res <- cl$sql(sprintf("DROP BLOB TABLE %s", tbl))
+  res <- cl$sql(sprintf("DROP BLOB TABLE %s", tbl), as = "parsed")
   expect_false(tbl %in% cl$blob$tables())
 })
