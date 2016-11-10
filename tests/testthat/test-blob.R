@@ -1,9 +1,7 @@
 context("blob")
 
 test_that("basic support", {
-  skip_if_no_crate()
-
-  cl <- client()
+  cl <- test_client()
 
   tbl <- basename(tempfile("blob_"))
   res <- cl$sql(sprintf("CREATE BLOB TABLE %s", tbl), as = "parsed")

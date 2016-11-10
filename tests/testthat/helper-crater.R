@@ -14,6 +14,11 @@ skip_if_no_crate <- function() {
   testthat::skip("crate was not running")
 }
 
+test_client <- function() {
+  skip_if_no_crate()
+  client(NULL)
+}
+
 setup_locations_data <- function() {
   shared_local <- "shared"
   shared_remote <- "/host"

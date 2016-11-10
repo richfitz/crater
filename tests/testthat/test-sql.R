@@ -7,10 +7,9 @@ context("sql")
 ## for a nice test setup
 
 test_that("basic", {
-  skip_if_no_crate()
+  cl <- test_client()
   ## I'll need to save some so that we can test this easily, but that
   ## requires getting table ingest working properly!
-  cl <- client()
   res <- cl$sql("SHOW TABLES WHERE table_name = 'tweets'", as = "parsed")
   if (res$rowcount == 0L) {
     skip("no sample data")
@@ -37,8 +36,7 @@ test_that("basic", {
 })
 
 test_that("insert; direct", {
-  skip_if_no_crate()
-  cl <- client()
+  cl <- test_client()
 
   res <- cl$sql("create table my_table (foo integer, bar string)",
                 as = "parsed", verbose = TRUE)
@@ -66,8 +64,7 @@ test_that("insert; direct", {
 })
 
 test_that("substitute data", {
-  skip_if_no_crate()
-  cl <- client()
+  cl <- test_client()
 
   res <- cl$sql("create table my_table (foo integer, bar string)",
                 as = "parsed", verbose = TRUE)
@@ -91,8 +88,7 @@ test_that("substitute data", {
 })
 
 test_that("bulk insert", {
-  skip_if_no_crate()
-  cl <- client()
+  cl <- test_client()
 
   cleanup <- setup_locations(cl)
   on.exit(cleanup())
