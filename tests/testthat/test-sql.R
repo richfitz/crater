@@ -58,3 +58,28 @@ test_that("insert; direct", {
                 as = "parsed")
   expect_equal(res$rowcount, 1)
 })
+
+test_that("substitute data", {
+  skip_if_no_crate()
+  cl <- client()
+
+  res <- cl$sql("create table my_table (foo integer, bar string)",
+                as = "parsed", verbose = TRUE)
+  on.exit(cl$sql("drop table my_table", as = "parsed"))
+
+  res <- cl$sql("insert into my_table (foo, bar) VALUES (1, 'a'), (2, 'b')",
+                as = "parsed")
+  res <- cl$sql("refresh table my_table", as = "parsed", verbose = TRUE)
+
+  for (pat in c("?", "$1")) {
+    sql <- sprintf("select * from my_table where foo > %s", pat)
+    res <- cl$sql(sql, parameters = 1, as = "tibble")
+    expect_equal(res$foo, 2)
+
+    res <- cl$sql(sql, parameters = -1, as = "tibble")
+    v <- c("a", "b")
+    expect_true(setequal(res$bar, v))
+    i <- match(v, res$bar)
+    expect_equal(res$foo[i], 1:2)
+  }
+})
