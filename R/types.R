@@ -85,8 +85,7 @@ crate_column <- function(i, rows, col_types) {
 }
 
 ## This whole bit is a work in progress!
-crate_json_to_df <- function(str) {
-  dat <- from_json(str)
+crate_dat_to_df <- function(dat) {
   ret <- lapply(seq_along(dat$cols), crate_column, dat$rows, dat$col_types)
   names(ret) <- dat$cols
   tibble::as_data_frame(ret)

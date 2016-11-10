@@ -35,9 +35,15 @@ test_that("insert; direct", {
   cl <- client()
 
   res <- cl$sql("create table my_table (foo integer, bar string)",
-                as = "parsed")
+                as = "parsed", verbose = TRUE)
   on.exit(cl$sql("drop table my_table", as = "parsed"))
 
+  ## from the crate docs:
+  ##
+  ## > The column list is always ordered alphabetically by column
+  ## > name. If the insert columns are omitted, the values in the
+  ## > VALUES clauses must correspond to the table columns in that
+  ## > order.
   res <- cl$sql("insert into my_table (foo, bar) VALUES (1, 'a'), (2, 'b')",
                 as = "parsed")
   expect_equal(res$rowcount, 2)

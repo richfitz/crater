@@ -34,7 +34,8 @@ client <- function(url = NULL) {
 
   ## sql is one of the main endpoints
   sql <- function(statement, parameters = NULL, bulk_parameters = NULL,
-                  col_types = FALSE, default_schema = NULL, as = "parsed") {
+                  col_types = FALSE, default_schema = NULL, as = "parsed",
+                  verbose = FALSE) {
     as <- match.arg(as, c("string", "parsed", "tibble"))
     if (is.null(statement)) {
       return(NULL)
@@ -56,11 +57,16 @@ client <- function(url = NULL) {
                         query = query, headers = headers)
     crate_stop_for_status(response)
     str <- httr::content(response, "text")
+    dat <- from_json(str)
+
+    if (verbose) {
+      message(sql_message(dat, statement))
+    }
 
     if (as == "tibble") {
-      crate_json_to_df(str)
+      crate_dat_to_df(dat)
     } else if (as == "parsed") {
-      from_json(str)
+      dat
     } else { ## string
       str
     }
@@ -172,4 +178,22 @@ has_crate <- function(url = NULL) {
   cl <- client(url)
   !is.null(tryCatch(cl$server_info(),
                     error = function(e) NULL))
+}
+
+sql_message <- function(dat, statement) {
+  command <- toupper(sub("\\s*(.*?)\\s.*", "\\1", statement))
+  rowcount <- ngettext(dat$rowcount, "1 row", paste0(dat$rowcount, "rows"))
+  if (dat$duration > -1) {
+    duration <- sprintf("%.3f sec", dat$duration / 1000)
+  } else {
+    duration <- ""
+  }
+  if (length(dat$cols) > 0L) {
+    msg <- sprintf("%s %s in set %s",
+                   command, rowcount, duration)
+  } else {
+    msg <- sprintf("%s OK, %s affected %s",
+                   command, rowcount, duration)
+  }
+  msg
 }
