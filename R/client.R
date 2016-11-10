@@ -34,7 +34,7 @@ client <- function(url = NULL) {
 
   ## sql is one of the main endpoints
   sql <- function(statement, parameters = NULL, bulk_parameters = NULL,
-                  col_types = FALSE, default_schema = NULL, as = "tibble") {
+                  col_types = FALSE, default_schema = NULL, as = "parsed") {
     as <- match.arg(as, c("string", "parsed", "tibble"))
     if (is.null(statement)) {
       return(NULL)
@@ -60,7 +60,7 @@ client <- function(url = NULL) {
     if (as == "tibble") {
       crate_json_to_df(str)
     } else if (as == "parsed") {
-      jsonlite::fromJSON(str)
+      from_json(str)
     } else { ## string
       str
     }
@@ -126,7 +126,7 @@ client <- function(url = NULL) {
     if (dat$rowcount == 0L) {
       character(0)
     } else {
-      drop(dat$rows)
+      unlist(dat$rows)
     }
   }
   blob_tables <- function() {
@@ -134,7 +134,7 @@ client <- function(url = NULL) {
     if (dat$rowcount == 0L) {
       character(0)
     } else {
-      drop(dat$rows)
+      unlist(dat$rows)
     }
   }
 

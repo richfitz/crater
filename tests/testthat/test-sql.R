@@ -18,7 +18,7 @@ test_that("basic", {
   expect_equal(class(res_list), "list")
 
   ## And the actual data:
-  res <- cl$sql("SELECT * from tweets limit 10")
+  res <- cl$sql("SELECT * from tweets limit 10", as = "tibble")
   expect_is(res, "tbl_df")
   expect_equal(nrow(res), 10)
 
@@ -28,4 +28,27 @@ test_that("basic", {
   expect_is(res$source, "character")
   expect_is(res$text, "character")
   expect_is(res$user, "list")
+})
+
+test_that("insert; direct", {
+  skip_if_no_crate()
+  cl <- client()
+
+  res <- cl$sql("create table my_table (foo integer, bar string)",
+                as = "parsed")
+  on.exit(cl$sql("drop table my_table", as = "parsed"))
+
+  res <- cl$sql("insert into my_table (foo, bar) VALUES (1, 'a'), (2, 'b')",
+                as = "parsed")
+  expect_equal(res$rowcount, 2)
+  ## crate is *eventually consistent* so we need to force update the
+  ## table or the read won't work
+  res <- cl$sql("refresh table my_table", as = "parsed")
+
+  res <- cl$sql("SELECT * FROM my_table", as = "tibble")
+  expect_equal(res, tibble::data_frame(bar = c('a', 'b'), foo = 1:2))
+
+  res <- cl$sql("insert into my_table (foo, bar) VALUES (3, 'c')",
+                as = "parsed")
+  expect_equal(res$rowcount, 1)
 })
