@@ -5,3 +5,12 @@
 [![codecov.io](https://codecov.io/github/richfitz/crater/coverage.svg?branch=master)](https://codecov.io/github/richfitz/crater?branch=master)
 
 R client to the [crate](https://crate.io) database.
+
+```
+mkdir -p tests/testthat/shared
+docker run -d -p 4200:4200 -p 4300:4300 --name crater_testing -v ${PWD}/tests/testthat/shared:/host crate
+```
+
+```
+docker run --rm -it --link crater_testing:crate crate crash --hosts crate:4200
+```
