@@ -74,10 +74,12 @@ crate_types <- tibble::data_frame(
     r2c = crate_types[, 7])
 
 crate_column <- function(i, rows, col_types) {
-  j <- match(col_types[[i]], crate_types$id)
+  j <- match(col_types[[i]][[1L]], crate_types$id)
   x <- lapply(rows, "[[", i)
   if (crate_types$atomic[[j]]) {
-    stopifnot(all(lengths(x) == 1))
+    len <- lengths(x)
+    x[len == 0] <- list(NA)
+    stopifnot(all(len <= 1))
     x <- unlist(x)
   }
   fn <- crate_types$c2r[[j]]

@@ -27,3 +27,12 @@ vnapply <- function(X, FUN, ...) {
 vcapply <- function(X, FUN, ...) {
   vapply(X, FUN, character(1), ...)
 }
+
+is_json <- function(x) {
+  inherits(x, "json")
+}
+
+## regular plurals only!
+plural <- function(n, name) {
+  ngettext(n, paste(1, name), sprintf("%d %ss", n, name))
+}

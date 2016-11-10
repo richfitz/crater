@@ -1,5 +1,11 @@
 context("sql")
 
+## TODO:
+##
+## See:
+##   docs/src/crate/tests.py
+## for a nice test setup
+
 test_that("basic", {
   skip_if_no_crate()
   ## I'll need to save some so that we can test this easily, but that
@@ -82,4 +88,31 @@ test_that("substitute data", {
     i <- match(v, res$bar)
     expect_equal(res$foo[i], 1:2)
   }
+})
+
+test_that("bulk insert", {
+  skip_if_no_crate()
+  cl <- client()
+
+  cleanup <- setup_locations(cl)
+  on.exit(cleanup())
+
+  df <- data.frame(id = 1337:1339,
+                   name = c("Earth", "Sun", "Titan"),
+                   kind = c("Planet", "Star", "Moon"),
+                   description = c(
+                     "An awesome place to spend some time on.",
+                     "An extraordinarily hot place.",
+                     "Titan, where it rains fossil fuels."),
+                   stringsAsFactors = FALSE)
+  sql <- "INSERT INTO locations (id, name, kind, description)
+          VALUES (?, ?, ?, ?)"
+  options(error = recover)
+  res <- cl$sql(sql, bulk_parameters = df, verbose = TRUE)
+  cl$sql("refresh table locations")
+
+  r <- cl$sql("SELECT * from locations WHERE name = 'Earth'", as = "tibble",
+              verbose = TRUE)
+  expect_equal(nrow(r), 1)
+  expect_equal(r$id, "1337")
 })

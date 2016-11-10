@@ -167,11 +167,14 @@ create_sql_payload <- function(statement, args, bulk_args) {
     }
   }
   if (!is.null(bulk_args)) {
+    if (!is.data.frame(bulk_args) || is_json(bulk_args)) {
+      stop("Expected a data.frame or json for bulk args")
+    }
     data$bulk_args <- bulk_args
   }
   ## TODO: There is some issues here with unboxing, and with dealing
   ## with datetimes that need some serious work
-  jsonlite::toJSON(data)
+  jsonlite::toJSON(data, "values")
 }
 
 has_crate <- function(url = NULL) {
@@ -182,7 +185,15 @@ has_crate <- function(url = NULL) {
 
 sql_message <- function(dat, statement) {
   command <- toupper(sub("\\s*(.*?)\\s.*", "\\1", statement))
-  rowcount <- ngettext(dat$rowcount, "1 row", paste0(dat$rowcount, "rows"))
+  if (is.null(dat$rowcount) && is.list(dat$results)) {
+    ## Bulk insert:
+    nr <- viapply(dat$results, function(x) as.integer(x$rowcount))
+    rowcount <- sprintf("%s (in %s)",
+                        plural(sum(nr), "row"),
+                        plural(length(nr), "set"))
+  } else {
+    rowcount <- plural(dat$rowcount, "row")
+  }
   if (dat$duration > -1) {
     duration <- sprintf("%.3f sec", dat$duration / 1000)
   } else {
