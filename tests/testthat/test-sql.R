@@ -112,3 +112,43 @@ test_that("bulk insert", {
   expect_equal(nrow(r), 1)
   expect_equal(r$id, "1337")
 })
+
+test_that("types: crate -> R", {
+  cl <- test_client()
+
+  cleanup <- setup_atomic(cl)
+  on.exit(cleanup())
+
+  ## Empty result, still get the correct types
+  dat <- cl$sql("SELECT * FROM atomic WHERE false", as = "tibble")
+  expect_equal(nrow(dat), 0L)
+  expect_is(dat$a_byte, "raw")
+  expect_is(dat$a_boolean, "logical")
+  expect_is(dat$a_string, "character")
+  expect_is(dat$a_ip, "character") # TODO
+  expect_is(dat$a_double, "numeric")
+  expect_is(dat$a_float, "numeric")
+  expect_is(dat$a_short, "integer")
+  expect_is(dat$a_integer, "integer")
+  expect_is(dat$a_long, "integer")
+  expect_is(dat$a_timestamp, "POSIXct")
+
+  dat <- cl$sql("SELECT * FROM atomic", as = "tibble")
+
+  cmp <- lapply(readLines("atomic.json"), jsonlite::fromJSON)
+  cmp1 <- cmp[[1]]
+
+  expect_true(setequal(names(cmp1), names(dat)))
+  expect_equal(dat$a_byte, as.raw(cmp1$a_byte))
+  expect_equal(dat$a_boolean, cmp1$a_boolean)
+  expect_equal(dat$a_string, cmp1$a_string)
+  expect_equal(dat$a_ip, cmp1$a_ip) # TODO
+  expect_equal(dat$a_double, cmp1$a_double)
+  expect_equal(dat$a_float, cmp1$a_float)
+  expect_equal(dat$a_short, cmp1$a_short)
+  expect_equal(dat$a_integer, cmp1$a_integer)
+  expect_equal(dat$a_long, cmp1$a_long)
+  expect_equal(dat$a_timestamp,
+               as.POSIXct(cmp1$a_timestamp / 1000, "UTC",
+                          origin = "1970-01-01"))
+})

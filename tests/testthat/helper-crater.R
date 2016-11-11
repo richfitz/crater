@@ -19,10 +19,10 @@ test_client <- function() {
   crate_client(NULL)
 }
 
-setup_locations_data <- function() {
-  shared_local <- "shared"
-  shared_remote <- "/host"
+SHARED_LOCAL <- "shared"
+SHARED_REMOTE <- "/host"
 
+setup_locations_data <- function() {
   "create table locations (
           id string primary key,
           name string,
@@ -44,13 +44,36 @@ setup_locations_data <- function() {
         ) clustered by(id) into 2 shards with (number_of_replicas=0)" -> create
   drop <- "drop table if exists locations"
 
-  file.copy("locations.json", shared_local)
+  file.copy("locations.json", SHARED_LOCAL)
 
   list(c(drop,
          create,
          "delete from locations",
-         sprintf("copy locations from '%s/locations.json'", shared_remote),
+         sprintf("copy locations from '%s/locations.json'", SHARED_REMOTE),
          "refresh table locations"),
+       drop)
+}
+
+setup_atomic_data <- function() {
+  "create table atomic (
+          a_byte byte,
+          a_boolean boolean,
+          a_string string,
+          a_ip ip,
+          a_double double,
+          a_float float,
+          a_short short,
+          a_integer integer,
+          a_long long,
+          a_timestamp timestamp)" -> create
+  drop <- "drop table if exists atomic"
+
+  file.copy("atomic.json", SHARED_LOCAL)
+
+  list(c(drop,
+         create,
+         sprintf("copy atomic from '%s/atomic.json'", SHARED_REMOTE),
+         "refresh table atomic"),
        drop)
 }
 
@@ -67,4 +90,7 @@ setup <- function(cl, data, verbose = FALSE) {
 
 setup_locations <- function(cl, verbose = FALSE) {
   setup(cl, setup_locations_data(), verbose)
+}
+setup_atomic <- function(cl, verbose = FALSE) {
+  setup(cl, setup_atomic_data(), verbose)
 }

@@ -36,7 +36,9 @@ crate_timestamp_in <- function(x) {
   as.POSIXct(x / 1000, origin = "1970-01-01", tz = "UTC")
 }
 crate_long_in <- function(x) {
-  if (all(abs(x) < .Machine$integer.max)) {
+  if (length(x) == 0L) {
+    integer(0)
+  } else if (all(abs(x) < .Machine$integer.max)) {
     as.integer(x)
   } else {
     as.numeric(x)
@@ -54,7 +56,7 @@ crate_types <- do.call("rbind", list(
   list(5L, "Ip", "ip", TRUE, as.character, character(1), NULL), # could support
   list(6L, "Double", "numeric", TRUE, as.numeric, numeric(1), NULL),
   list(7L, "Float", "numeric", TRUE, as.numeric, numeric(1), NULL),
-  list(8L, "Short", "Short", TRUE, as.numeric, numeric(1), NULL),
+  list(8L, "Short", "Short", TRUE, as.integer, integer(1), NULL),
   list(9L, "Integer", "integer", TRUE, as.integer, integer(1), NULL),
   list(10L, "Long", "integer", TRUE, crate_long_in, integer(1), NULL),
   list(11L, "Timestamp", "POSIXct", TRUE, crate_timestamp_in, NULL, NULL),
