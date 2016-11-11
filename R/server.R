@@ -1,4 +1,4 @@
-server_handle <- function(server) {
+crate_server_handle <- function(server) {
   ## It is very likely that we might want to do something like:
   ## h <- curl::new_handle(url = server)
   ## curl::handle_setheaders(h,

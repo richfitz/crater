@@ -16,7 +16,7 @@ skip_if_no_crate <- function() {
 
 test_client <- function() {
   skip_if_no_crate()
-  client(NULL)
+  crate_client(NULL)
 }
 
 setup_locations_data <- function() {

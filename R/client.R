@@ -1,161 +1,117 @@
-## https://crate.io/docs/reference/en/0.55.0/sql/rest.html
-
-PATH_SQL <- "/_sql"
-path_blob <- function(table, digest) {
-  sprintf("/_blobs/%s/%s", table, digest)
+##' Create a crate client.  The function \code{has_crate} is a small
+##' convenience funtion to test if there is a crate server running at
+##' a given url.
+##'
+##' @title Create a crate client
+##
+##' @param url The URL of the server to connect to.  By default this
+##'   will use \code{http://127.0.0.1:4200}.  You will need to include
+##'   both the protocol and the port number in most cases.
+##
+##' @export
+##' @author Rich FitzJohn
+##' @importFrom R6 R6Class
+crate_client <- function(url = NULL) {
+  R6_crate_client$new(url)
 }
 
-## I'm unsure if this will move into being R6 or not.  It probably
-## will...
-client <- function(url = NULL) {
-  server <- server_handle(url %||% "http://127.0.0.1:4200")
+##' @export
+##' @rdname crate_client
+has_crate <- function(url = NULL) {
+  cl <- crate_client(url)
+  !is.null(tryCatch(cl$server_info(),
+                    error = function(e) NULL))
+}
 
-  close <- function() {
-    lapply(server_pool, function(s) s$close())
-    invisible(NULL)
-  }
+R6_crate_client <- R6::R6Class(
+  "crate_client",
 
-  request <- function(method, path, ...) {
-    ## This needs a bunch of work for the clustered case where we'll
-    ## be passed redirects here.
-    server$request(method, path, ...)
-  }
+  public = list(
+    server = NULL,
 
-  server_info <- function() {
-    response <- request("GET", "/")
-    crate_stop_for_status(response)
-    ret <- json_from_response(response)
-    ret$server <- server$url
-    ret$version$number <- numeric_version(ret$version$number)
-    ret$version$es_version <- numeric_version(ret$version$es_version)
-    ret$version$lucene_version <- numeric_version(ret$version$lucene_version)
-    ret
-  }
+    initialize = function(url) {
+      self$server <- crate_server_handle(url %||% "http://127.0.0.1:4200")
+    },
 
-  ## sql is one of the main endpoints
-  sql <- function(statement, parameters = NULL, bulk_parameters = NULL,
-                  col_types = FALSE, default_schema = NULL, as = "parsed",
-                  verbose = FALSE) {
-    as <- match.arg(as, c("string", "parsed", "tibble"))
-    if (is.null(statement)) {
-      return(NULL)
-    }
-    if (col_types || as == "tibble") {
-      query <- list(types = "")
-    } else {
-      query <- NULL
-    }
-    if (!is.null(default_schema)) {
-      headers <- c("Default-Schema" = default_schema)
-    } else {
-      headers <- NULL
-    }
+    request = function(...) {
+      ## TODO: This exists primarily so we can eventually handle
+      ## passing a set servers through to the client (see the python
+      ## client for an example).
+      self$server$request(...)
+    },
 
-    data <- create_sql_payload(statement, parameters, bulk_parameters)
-
-    response <- request("POST", PATH_SQL, data = data,
-                        query = query, headers = headers)
-    crate_stop_for_status(response)
-    str <- httr::content(response, "text")
-    dat <- from_json(str)
-
-    if (verbose) {
-      message(sql_message(dat, statement))
-    }
-
-    if (as == "tibble") {
-      crate_dat_to_df(dat)
-    } else if (as == "parsed") {
-      dat
-    } else { ## string
-      str
-    }
-  }
-
-  ## Blob support: Get, Set, Del, Exists, List
-  ##
-  ## The main (only?) things that get found by scope here are
-  ## 'request()'
-  blob_get <- function(table, digest) {
-    response <- request("GET", path_blob(table, digest))
-    ## TODO: could roll this into the stop for status with various
-    ## handlers, lazily evaluated.
-    if (httr::status_code(response) == 404) {
-      stop(DigestNotFoundError(table, digest))
-    }
-    ## TODO: could use curl_fetch_stream here, which is in the new curl
-    crate_stop_for_status(response)
-    httr::content(response, "raw")
-  }
-  blob_set <- function(table, digest, data) {
-    assert_raw(data)
-    response <- request("PUT", path_blob(table, digest), data = data)
-    code <- httr::status_code(response)
-    if (code == 201) {
-      return(TRUE)
-    } else if (code == 409) {
-      return(FALSE)
-    } else {
-      ## TODO: special treatment for the 400 error here which the
-      ## python lib throws as BlobsDisabledException
+    server_info = function() {
+      response <- self$request("GET", "/")
       crate_stop_for_status(response)
+      ret <- json_from_response(response)
+      ret$server <- self$server$url
+      ret$version$number <- numeric_version(ret$version$number)
+      ret$version$es_version <- numeric_version(ret$version$es_version)
+      ret$version$lucene_version <- numeric_version(ret$version$lucene_version)
+      ret
+    },
+
+    sql = function(statement, parameters = NULL, bulk_parameters = NULL,
+                   col_types = FALSE, default_schema = NULL, as = "parsed",
+                   verbose = FALSE) {
+      crate_sql(statement, self$request, parameters, bulk_parameters,
+                col_types, default_schema, as, verbose)
+    },
+
+    blob = function(table) {
+      ## TODO: assert_scalar_character(table) (or in crate_blob$new)
+      crate_blob$new(self, table)
+    },
+
+    blob_tables = function() {
+      dat <- self$sql("SHOW TABLES IN blob", as = "parsed")
+      if (dat$rowcount == 0L) {
+        character(0)
+      } else {
+        unlist(dat$rows)
+      }
     }
+  ))
+
+## https://crate.io/docs/reference/en/0.55.0/sql/rest.html
+crate_sql <- function(statement, request, parameters = NULL,
+                      bulk_parameters = NULL, col_types = FALSE,
+                      default_schema = NULL, as = "parsed", verbose = FALSE) {
+  as <- match.arg(as, c("string", "parsed", "tibble"))
+  if (is.null(statement)) {
+    return(NULL)
   }
-  blob_del <- function(table, digest) {
-    response <- request("DELETE", path_blob(table, digest))
-    code <- httr::status_code(response)
-    if (code == 204) {
-      return(TRUE)
-    } else if (code == 404) {
-      return(FALSE)
-    } else {
-      crate_stop_for_status(response)
-    }
+  if (col_types || as == "tibble") {
+    query <- list(types = "")
+  } else {
+    query <- NULL
   }
-  blob_exists <- function(table, digest) {
-    response <- request("HEAD", path_blob(table, digest))
-    code <- httr::status_code(response)
-    if (code == 200) {
-      return(TRUE)
-    } else if (code == 404) {
-      return(FALSE)
-    } else {
-      crate_stop_for_status(response)
-    }
-  }
-  blob_list <- function(table) {
-    ## Possible outcomes to guard against here:
-    ##
-    ## 1. table does not exist: throw appropriate error
-    ## 2. table is empty; return character(0)
-    dat <- sql(sprintf("SELECT DIGEST FROM blob.%s", table), as = "parsed")
-    if (dat$rowcount == 0L) {
-      character(0)
-    } else {
-      unlist(dat$rows)
-    }
-  }
-  blob_tables <- function() {
-    dat <- sql("SHOW TABLES IN blob", as = "parsed")
-    if (dat$rowcount == 0L) {
-      character(0)
-    } else {
-      unlist(dat$rows)
-    }
+  if (!is.null(default_schema)) {
+    headers <- c("Default-Schema" = default_schema)
+  } else {
+    headers <- NULL
   }
 
-  blob <- list(get = blob_get,
-               set = blob_set,
-               del = blob_del,
-               exists = blob_exists,
-               list = blob_list,
-               tables = blob_tables)
+  data <- create_sql_payload(statement, parameters, bulk_parameters)
 
-  list(close = close,
-       sql = sql,
-       blob = blob,
-       request = request,
-       server_info = server_info)
+  path_sql <- "/_sql"
+  response <- request("POST", path_sql, data = data,
+                      query = query, headers = headers)
+  crate_stop_for_status(response)
+  str <- httr::content(response, "text")
+  dat <- from_json(str)
+
+  if (verbose) {
+    message(sql_message(dat, statement))
+  }
+
+  if (as == "tibble") {
+    crate_dat_to_df(dat)
+  } else if (as == "parsed") {
+    dat
+  } else { ## string
+    str
+  }
 }
 
 create_sql_payload <- function(statement, args, bulk_args) {
@@ -177,12 +133,6 @@ create_sql_payload <- function(statement, args, bulk_args) {
   jsonlite::toJSON(data, "values")
 }
 
-has_crate <- function(url = NULL) {
-  cl <- client(url)
-  !is.null(tryCatch(cl$server_info(),
-                    error = function(e) NULL))
-}
-
 sql_message <- function(dat, statement) {
   command <- toupper(sub("\\s*(.*?)\\s.*", "\\1", statement))
   if (is.null(dat$rowcount) && is.list(dat$results)) {
@@ -191,6 +141,11 @@ sql_message <- function(dat, statement) {
     rowcount <- sprintf("%s (in %s)",
                         plural(sum(nr), "row"),
                         plural(length(nr), "set"))
+    ## TODO:
+    ## > If an error occures the rowcount is -2 and the result may
+    ## > contain an error_message depending on the error.
+    ##
+    ## From the python client docs
   } else {
     rowcount <- plural(dat$rowcount, "row")
   }

@@ -4,13 +4,16 @@ Author: Rich FitzJohn
 Maintainer: Rich FitzJohn <rich.fitzjohn@gmail.com>
 Version: 0.1.0
 Description: Client interface to the "crate" database server.
-Depends: R (>= 3.3.1)
+Depends:
+    R (>= 3.3.1)
 License: MIT + file LICENSE
 Imports:
-  curl,
-  httr,
-  jsonlite,
-  openssl,
-  tibble
+    R6,
+    curl,
+    httr,
+    jsonlite,
+    openssl,
+    tibble
 Suggests:
-  testthat
+    testthat
+RoxygenNote: 5.0.1

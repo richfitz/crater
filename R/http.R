@@ -19,3 +19,8 @@ crate_stop_for_status <- function(response) {
 json_from_response <- function(response) {
   jsonlite::fromJSON(httr::content(response, "text"))
 }
+
+handle_response <- function(x, ...) {
+  code <- as.character(httr::status_code(x))
+  switch(code, ..., crate_stop_for_status(x))
+}
