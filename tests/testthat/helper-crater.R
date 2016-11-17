@@ -11,7 +11,7 @@ skip_if_no_crate <- function() {
   if (has_crate()) {
     return()
   }
-  testthat::skip("crate was not running")
+  testthat::skip("crate is not running")
 }
 
 test_client <- function() {
@@ -93,4 +93,8 @@ setup_locations <- function(cl, verbose = FALSE) {
 }
 setup_atomic <- function(cl, verbose = FALSE) {
   setup(cl, setup_atomic_data(), verbose)
+}
+
+random_table <- function(prefix = "crater_") {
+  basename(tempfile(prefix))
 }

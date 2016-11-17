@@ -15,5 +15,6 @@ Imports:
     openssl,
     tibble
 Suggests:
+    storr (>= 1.0.2),
     testthat
 RoxygenNote: 5.0.1

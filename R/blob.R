@@ -10,6 +10,10 @@ crate_blob <- R6::R6Class(
       self$table <- table
     },
 
+    destroy = function() {
+      self$crate$sql(sprintf("DROP BLOB TABLE IF EXISTS %s", self$table))
+    },
+
     get = function(digest) {
       response <- self$crate$request("GET", crate_blob_path(self$table, digest))
       handle_response(response,
