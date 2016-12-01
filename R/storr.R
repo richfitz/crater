@@ -4,6 +4,12 @@
 ## "eventually consistent" thing to work for us.  So it'd be nice to
 ## be allow the storr to sync, unsync separately.
 
+storr_crate <- function(crate, tbl_data, tbl_keys,
+                        default_namespace = "objects") {
+  storr::storr(storr_driver_crate(crate, tbl_data, tbl_keys),
+               default_namespace)
+}
+
 storr_driver_crate <- function(crate, tbl_data, tbl_keys) {
   R6_storr_driver_crate$new(crate, tbl_data, tbl_keys)
 }
